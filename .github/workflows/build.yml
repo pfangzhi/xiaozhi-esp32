@@ -1,9 +1,7 @@
-# .github/workflows/build-xiaozhi.yml
-
-name: Build XiaoZhi Firmware
+name: Build XiaoZhi Firmware (ESP32-C6)
 
 on:
-  workflow_dispatch:    # 手动触发
+  workflow_dispatch:
   push:
     branches: [ main ]
   pull_request:
@@ -19,48 +17,47 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build & Export firmware
+    - name: Build with official ESP-IDF docker
       run: |
-        # 使用社区比较成熟的 esp-idf 镜像（推荐 espressif 的官方镜像）
         docker run --rm -v ${{ github.workspace }}:/project \
           -w /project \
-          -e BOARD=waveshare-c6-touch-lcd-1.83   # ← 改成你自己的板子型号
-          espressif/idf: v5.5.1 \
+          espressif/idf:v5.4.1 \
           bash -c "
-            ./install.sh esp32c6       && \
-            . ./export.sh              && \
-            idf.py set-target esp32c6  && \
-            idf.py menuconfig          || true && \   # 如果有预设sdkconfig可以跳过
+            ./install.sh esp32c6 && \
+            . ./export.sh && \
+            idf.py set-target esp32c6 && \
             idf.py build
           "
 
+    # 重要：小智项目 v2 版本的固件输出路径（根据最新仓库实际情况）
     - name: Upload firmware artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: xiaozhi-firmware
+        name: xiaozhi-firmware-esp32c6
         path: |
-          build/xiaozhi-esp32.bin
           build/bootloader/bootloader.bin
           build/partition_table/partition-table.bin
-          build/xiaozhi-esp32.spiffs.bin   # 如果有SPIFFS分区
+          build/firmware.bin               # ← 最常见的主固件名称
+          build/xiaozhi.bin                # 部分板型/分支会生成此名称，保险起见都包含
+          build/*.bin                      # 兜底方案，包含所有 .bin 文件
         retention-days: 7
 
-    # 可选：如果要自动发布到Release
-    - name: Create Release & Upload
+    # 可选：自动创建 GitHub Release（仅在 main 分支 push 时触发）
+    - name: Create GitHub Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: v${{ github.run_number }}
-        name: XiaoZhi Firmware ${{ github.run_number }}
+        tag_name: auto-build-${{ github.run_number }}
+        name: Auto Build ${{ github.run_number }} (ESP32-C6)
         draft: false
-        prerelease: false
+        prerelease: true
         files: |
-          build/xiaozhi-esp32.bin
           build/bootloader/bootloader.bin
           build/partition_table/partition-table.bin
+          build/firmware.bin
+          build/xiaozhi.bin
         body: |
-          Auto built by GitHub Actions
+          **自动构建固件（ESP32-C6）**
           Commit: ${{ github.sha }}
+          生成时间: ${{ github.event.head_commit.timestamp }}
+          注意：请先验证是否能正常烧录到您的 Waveshare ESP32-C6-Touch-LCD-1.83
