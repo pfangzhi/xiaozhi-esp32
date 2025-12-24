@@ -27,8 +27,8 @@ jobs:
         # 使用社区比较成熟的 esp-idf 镜像（推荐 espressif 的官方镜像）
         docker run --rm -v ${{ github.workspace }}:/project \
           -w /project \
-          -e BOARD=esp32s3box   # ← 改成你自己的板子型号
-          espressif/idf: v5.3.2 \
+          -e BOARD=waveshare-c6-touch-lcd-1.83   # ← 改成你自己的板子型号
+          espressif/idf: v5.5.1 \
           bash -c "
             ./install.sh esp32c6       && \
             . ./export.sh              && \
